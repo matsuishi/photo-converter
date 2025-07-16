@@ -27,6 +27,12 @@ try {
 
 
 const app = express();
+// ★★★ この3行をここに追加 ★★★
+app.use((req, res, next) => {
+  console.log(`--- REQUEST RECEIVED: Path=${req.path} ---`);
+  next();
+});
+
 const port = process.env.PORT || 3001; 
 const uploadDir = './uploads'; 
 
