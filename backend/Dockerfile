@@ -1,19 +1,36 @@
-# 最もシンプルなベースイメージを使用し、Node.jsやアプリコードは含まない
-FROM alpine:latest 
+# Stage 1: ビルドステージ - 開発ツールとnpm依存関係のインストール
+FROM node:20 AS builder
 
-# 作業ディレクトリは必須ではないが、一応設定
 WORKDIR /app
 
-# Node.js やアプリケーションコードは一切含めない
-# COPY package*.json ./
-# RUN npm install --production && npm rebuild
-# COPY . .
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libvips-dev \
+    build-essential \
+    git \
+    libjpeg-turbo-dev \
+    libpng-dev \
+    librsvg-dev \
+    libwebp-dev \
+    openjpeg-dev \
+    zlib1g-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+RUN npm install --production && npm rebuild
+
+
+# Stage 2: 最終ステージ - 最小限のランタイム環境
+FROM node:20-slim 
+
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/. .
 
 ENV PORT 8080
 EXPOSE 8080
 
-# ★★★ NEW DEBUGGING CMD START ★★★
-# 最もシンプルなシェルコマンドを実行し、ログを出し続けることを目的とする
-# date コマンドのために coreutils をインストールする
-CMD ["/bin/sh", "-c", "apk add --no-cache coreutils; while true; do date '+%Y-%m-%d %H:%M:%S - Hello, Test Container!'; sleep 5; done"]
-# ★★★ NEW DEBUGGING CMD END ★★★
+# ★★★ CMDを元の server.js の実行に戻す ★★★
+# アプリケーションを起動するコマンド
+CMD ["node", "server.js"] # ★この行を以前のデバッグCMDから戻す
