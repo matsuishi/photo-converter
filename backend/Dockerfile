@@ -6,7 +6,7 @@ FROM node:20-alpine
 # しかし、シンプルさのため、一時的に単一ステージで試す
 
 # libvipsの依存関係をインストール
-RUN apk add --no-cache libvips-dev build-base gcc autoconf automake zlib-dev nasm git
+RUN apk add --no-cache vips-dev build-base gcc autoconf automake zlib-dev nasm git
 
 # 作業ディレクトリを設定
 WORKDIR /app
