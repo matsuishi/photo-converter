@@ -8,14 +8,23 @@ const archiver = require('archiver');
 const heicConvert = require('heic-convert');
 
 const app = express();
-const port = 3001;
+// ★修正点1: Cloud Run の PORT 環境変数を使用
+const port = process.env.PORT || 3001;
 const uploadDir = './uploads';
 
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
 
-app.use(cors());
+// ★修正点2: より明示的なCORS設定
+const corsOptions = {
+  origin: 'https://matsuishi.github.io', // ★あなたのGitHub Pagesのドメインを正確に指定
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
+  credentials: true,
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions)); // app.use(cors()); の代わりにこれを使用
+
 app.use('/downloads', express.static(path.join(__dirname, 'uploads')));
 
 const storage = multer.memoryStorage();
@@ -28,6 +37,10 @@ app.post('/convert', upload.array('images'), async (req, res) => {
         const { width, height, quality, format } = req.body;
         const conversionId = Date.now().toString();
         const convertedFiles = [];
+
+        // ★修正点3a: バックエンド自身の公開URLを取得するための環境変数を追加
+        // Cloud Run の URL は CLOUD_RUN_URL 環境変数で提供されます (後でGCPで設定)
+        const backendBaseUrl = process.env.CLOUD_RUN_URL || `http://localhost:${port}`; 
 
         const processFile = async (file) => {
             const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
@@ -56,7 +69,8 @@ app.post('/convert', upload.array('images'), async (req, res) => {
                 name: outputFilename,
                 path: outputPath,
                 size: outputBuffer.length,
-                url: `http://localhost:${port}/downloads/${outputFilename}`
+                // ★修正点3b: ダウンロードURLにバックエンドの公開URLを使用
+                url: `${backendBaseUrl}/downloads/${outputFilename}`
             });
         };
 
