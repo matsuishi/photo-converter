@@ -1,20 +1,35 @@
+// TOP OF FILE
+console.log('--- server.js script started execution (TOP OF FILE) ---'); 
+
 const express = require('express');
 const multer = require('multer');
-const sharp = require('sharp');
-const cors = require('cors');
+// const sharp = require('sharp'); // sharp は try/catch でロードするためコメントアウト
+const cors = require('cors'); 
 const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
-const heicConvert = require('heic-convert');
+// const heicConvert = require('heic-convert'); // heicConvert も try/catch でロードするためコメントアウト
+
+let sharp; // sharp を let で宣言
+let heicConvert; // heicConvert も let で宣言
+
+// ★★★ NEW DEBUGGING CODE START (sharp/heic-convert ロードテスト) ★★★
+try {
+  console.log('--- Attempting to load sharp and heic-convert ---');
+  sharp = require('sharp'); // ロードをtry/catchで囲む
+  heicConvert = require('heic-convert'); // ロードをtry/catchで囲む
+  console.log('--- sharp and heic-convert loaded successfully ---');
+} catch (e) {
+  console.error('--- ERROR: Failed to load sharp or heic-convert on startup ---', e.message, e.stack);
+  // 致命的なエラーなので、ここでプロセスを終了させ、Cloud Run にエラーを通知
+  process.exit(1); 
+}
+// ★★★ NEW DEBUGGING CODE END ★★★
+
 
 const app = express();
-// ★修正点1: ポート設定を環境変数から取得するように変更
 const port = process.env.PORT || 3001; 
 const uploadDir = './uploads'; 
-
-// ★★★ NEW DEBUGGING LOG START (コード冒頭のログ) ★★★
-console.log('--- server.js script started execution (TOP OF FILE) ---'); 
-// ★★★ NEW DEBUGGING LOG END ★★★
 
 if (!fs.existsSync(uploadDir)) { 
     fs.mkdirSync(uploadDir); 
@@ -32,9 +47,9 @@ app.get('/test-cors', (req, res) => {
   res.status(200).json({ message: 'CORS test successful from backend!' });
 });
 
-// ★修正点2: CORS設定をより明示的にする
+// CORSオプションを定義
 const corsOptions = {
-  origin: 'https://matsuishi.github.io', // ★あなたのGitHub Pagesのドメイン
+  origin: 'https://matsuishi.github.io', 
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
   credentials: true,
   optionsSuccessStatus: 204
@@ -52,10 +67,9 @@ const upload = multer({ storage: storage });
 const conversionCache = {}; 
 
 app.post('/convert', upload.array('images'), async (req, res) => { 
-    // ★追加: ルートに到達したか、ファイルがパースされたかを確認するログ
     // 強制的にCORSヘッダーを設定（app.use(cors)が機能しない場合の最終手段）
-    res.setHeader('Access-Control-Allow-Origin', 'https://matsuishi.github.io'); // ★あなたのGitHub Pagesのドメイン
-    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+    res.setHeader('Access-Control-Allow-Origin', 'https://matsuishi.github.io'); 
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST', 'DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     console.log('--- POST /convert route hit ---'); 
@@ -67,7 +81,6 @@ app.post('/convert', upload.array('images'), async (req, res) => {
         const conversionId = Date.now().toString(); 
         const convertedFiles = []; 
 
-        // ★修正点3a: バックエンド自身の公開URLを取得するための環境変数
         const backendBaseUrl = process.env.K_SERVICE_URL || process.env.CLOUD_RUN_URL || `http://localhost:${port}`; 
 
         const processFile = async (file) => { 
@@ -97,7 +110,6 @@ app.post('/convert', upload.array('images'), async (req, res) => {
                 name: outputFilename, 
                 path: outputPath, 
                 size: outputBuffer.length, 
-                // ★修正点3b: ダウンロードURLをCloud Runの公開URLに設定
                 url: `${backendBaseUrl}/downloads/${outputFilename}` 
             }); 
         }; 
@@ -142,12 +154,11 @@ app.use((req, res, next) => {
   res.status(404).send('Backend API: Not Found');
 });
 
-// ★★★ NEW DEBUGGING CODE START (app.listen の周辺) ★★★
+// app.listen の周辺のログも維持
 console.log(`--- Attempting to listen on port ${port} (Cloud Run PORT env: ${process.env.PORT}) ---`);
-app.listen(port, '0.0.0.0', () => { // 明示的に 0.0.0.0 にバインド
+app.listen(port, '0.0.0.0', () => { 
     console.log(`--- Server listening successfully at http://0.0.0.0:${port} ---`);
-}).on('error', (err) => { // アプリ起動時のエラーを捕捉
+}).on('error', (err) => { 
     console.error('--- app.listen ERROR: Server failed to start ---', err.message, err.stack); 
-    process.exit(1); // 起動エラー時はプロセスを終了させる
+    process.exit(1); 
 });
-// ★★★ NEW DEBUGGING CODE END ★★★
