@@ -15,17 +15,34 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir); 
 } 
 
+// ★★★ NEW DEBUGGING CODE START ★★★
+// シンプルなテストルートを一番上に配置し、CORSヘッダーを明示的に設定
+app.get('/test-cors', (req, res) => {
+  console.log('--- /test-cors route hit ---'); // Cloud Runログで確認
+  console.log('Request Origin:', req.headers.origin); // リクエストのオリジンをログに出力
+  
+  // 明示的にCORSヘッダーを設定 (app.use(cors) が機能しない場合のテスト)
+  res.setHeader('Access-Control-Allow-Origin', 'https://matsuishi.github.io'); // ★あなたのGitHub Pagesのドメイン
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  res.status(200).json({ message: 'CORS test successful from backend!' });
+});
+// ★★★ NEW DEBUGGING CODE END ★★★
+
+// CORSオプションを定義
 const corsOptions = {
-  origin: 'https://matsuishi.github.io', 
+  origin: 'https://matsuishi.github.io', // ★あなたのGitHub Pagesのドメイン
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
   credentials: true,
   optionsSuccessStatus: 204
 };
-app.use(cors(corsOptions)); 
+app.use(cors(corsOptions)); // これがメインのCORSミドルウェア
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // JSONボディをパースするために必要
+app.use(express.urlencoded({ extended: true })); // URLエンコードされたボディをパース
 
+// 静的ファイルの提供
 app.use('/downloads', express.static(path.join(__dirname, 'uploads')));
 
 const storage = multer.memoryStorage();
@@ -34,17 +51,17 @@ const upload = multer({ storage: storage });
 const conversionCache = {}; 
 
 app.post('/convert', upload.array('images'), async (req, res) => { 
-    // ★ここから追加・修正
-    console.log('--- POST /convert route hit ---'); // ルートに到達したか確認
-    console.log('Request files:', req.files); // multerがファイルを正しくパースしたか確認
-    console.log('Request body:', req.body); // JSONボディがあるか確認 (今回は画像なので通常空)
-    // ★ここまで追加・修正
+    // ★追加: ルートに到達したか、ファイルがパースされたかを確認するログ
+    console.log('--- POST /convert route hit ---'); 
+    console.log('Request files:', req.files); 
+    console.log('Request body:', req.body); 
 
     try { 
         const { width, height, quality, format } = req.body; 
         const conversionId = Date.now().toString(); 
         const convertedFiles = []; 
 
+        // バックエンド自身の公開URLを取得
         const backendBaseUrl = process.env.K_SERVICE_URL || process.env.CLOUD_RUN_URL || `http://localhost:${port}`; 
 
         const processFile = async (file) => { 
@@ -88,7 +105,7 @@ app.post('/convert', upload.array('images'), async (req, res) => {
         }); 
 
     } catch (error) { 
-        console.error(error); 
+        console.error('Image conversion error:', error); // エラーログを改善
         res.status(500).send('Image conversion failed.'); 
     } 
 }); 
@@ -113,13 +130,12 @@ app.get('/download-zip/:conversionId', (req, res) => {
     archive.finalize(); 
 }); 
 
-// ★ここから追加
 // どのルートにもマッチしない場合、404エラーを返すミドルウェア
 // これは app.listen() の直前に置くのが非常に重要です
 app.use((req, res, next) => {
   res.status(404).send('Backend API: Not Found');
 });
-// ★ここまで追加
+
 
 app.listen(port, () => { 
     console.log(`Server listening at http://localhost:${port}`); 
