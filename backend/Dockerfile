@@ -28,14 +28,15 @@ RUN npm install --production && npm rebuild
 
 # Stage 2: 最終ステージ - 最小限のランタイム環境
 # 実行に必要なものだけを含む、より軽量なNode.jsイメージを使用
-FROM node:20-slim # node:20 よりさらに軽量
+FROM node:20-slim # node:20
 
 # 作業ディレクトリを設定
 WORKDIR /app
 
 # ビルドステージから、コンパイル済みのnode_modules とアプリケーションのソースコードをコピー
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/. . # アプリケーションのソースコードをコピー
+COPY --from=builder /app/. . 
+# アプリケーションのソースコードをコピー
 
 ENV PORT 8080
 EXPOSE 8080
