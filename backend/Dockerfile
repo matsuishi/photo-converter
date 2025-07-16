@@ -17,5 +17,5 @@ EXPOSE 8080
 # ★★★ NEW DEBUGGING CMD START ★★★
 # 非常にシンプルなNode.jsスクリプトを実行し、ログを出力し続ける。
 # そして、簡易的なHTTPサーバーを起動して、Cloud Runがリクエストをルーティングできるか確認します。
-CMD ["node", "-e", "console.log('Node.js is running!'); setInterval(() => console.log('Still alive...'), 5000); require('http').createServer((req, res) => { console.log('Request received!'); res.end('Hello from test server'); }).listen(process.env.PORT || 8080, '0.0.0.0', () => console.log('Test server listening.'));"]
+CMD ["/bin/sh", "-c", "while true; do echo 'Hello from Docker CMD!'; sleep 5; done"]
 # ★★★ NEW DEBUGGING CMD END ★★★
