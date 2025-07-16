@@ -40,7 +40,7 @@ function App() {
     formData.append('format', format);
 
     try {
-      const response = await axios.post('http://localhost:3001/convert', formData, {
+      const response = await axios.post('https://photo-converter-350490003884.asia-northeast1.run.app/convert', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -54,7 +54,7 @@ function App() {
 
   const handleDownloadZip = () => {
     if (!conversionId) return;
-    const downloadUrl = `http://localhost:3001/download-zip/${conversionId}`;
+    const downloadUrl = `https://photo-converter-350490003884.asia-northeast1.run.app/download-zip/${conversionId}`;
     window.open(downloadUrl, '_blank');
   };
 
