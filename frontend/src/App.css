@@ -1,0 +1,140 @@
+.App {
+    text-align: center;
+}
+
+.main-content {
+    display: flex;
+    height: 100vh;
+}
+
+.controls-container {
+    width: 450px;
+    padding: 20px;
+    border-right: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Make it take full height of main-content */
+    box-sizing: border-box; /* Include padding in height calculation */
+}
+
+.converted-container {
+    flex-direction: column;  /* 縦に要素を積む */
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto; /* Make this area scrollable */
+}
+
+.dropzone {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.dropzone.active {
+    border-color: #007bff;
+}
+
+.controls {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.controls input, .controls select {
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+.format-select, .quality-slider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+button {
+    padding: 12px 20px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.original-images-container {
+    margin-top: 20px;
+    flex-grow: 1; /* Take remaining space */ 
+    overflow-y: auto; /* Scroll if content overflows */
+}
+
+.original-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.preview-item-small {
+    position: relative;
+    width: 120px;
+}
+
+.preview-item-small img {
+    width: 100%;
+    height: auto;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.preview-item-small p {
+    font-size: 12px;
+    overflow-wrap: break-word;
+}
+
+.remove-btn {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    line-height: 18px;
+    text-align: center;
+    padding: 0;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 0;
+}
+
+.converted-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.preview-item-large {
+    width: calc(50% - 10px); /* Two items per row */
+}
+
+.preview-item-large img {
+    width: 100%;
+    height: auto;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+.preview-item-large p {
+    margin-top: 5px;
+    font-size: 14px;
+}
