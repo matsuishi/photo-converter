@@ -17,7 +17,7 @@ COPY package*.json ./
 # sharp が適切にインストールされるよう、npm install --production の前に --unsafe-perm を使う場合があります
 # あるいは、RUN npm install の前に、sharpをインストールするために必要なシステムパッケージをインストールします。
 # 上記のapk addはsharpのビルドに必要なシステム依存関係も提供します。
-RUN npm install --production
+RUN npm install --production && npm rebuild
 
 # アプリケーションのソースコードをコピー
 COPY . .
