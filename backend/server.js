@@ -8,20 +8,19 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
-// const heicConvert = require('heic-convert'); // heicConvert も try/catch でロードするためコメントアウト
+// const heicConvert = require('heic-convert'); // ★heicConvert は一時的に除外
 
 let sharp; // sharp を let で宣言
-let heicConvert; // heicConvert も let で宣言
+let heicConvert; // ★heicConvert も let で宣言しておくが、require は行わない
 
-// ★★★ NEW DEBUGGING CODE START (sharp/heic-convert ロードテスト) ★★★
+// ★★★ NEW DEBUGGING CODE START (sharp ロードテストのみ) ★★★
 try {
-  console.log('--- Attempting to load sharp and heic-convert ---');
-  sharp = require('sharp'); // ロードをtry/catchで囲む
-  heicConvert = require('heic-convert'); // ロードをtry/catchで囲む
-  console.log('--- sharp and heic-convert loaded successfully ---');
+  console.log('--- Attempting to load sharp ---'); // ロードメッセージを修正
+  sharp = require('sharp'); 
+  // heicConvert はここではロードしない
+  console.log('--- sharp loaded successfully ---'); 
 } catch (e) {
-  console.error('--- ERROR: Failed to load sharp or heic-convert on startup ---', e.message, e.stack);
-  // 致命的なエラーなので、ここでプロセスを終了させ、Cloud Run にエラーを通知
+  console.error('--- ERROR: Failed to load sharp on startup ---', e.message, e.stack); // エラーメッセージを修正
   process.exit(1); 
 }
 // ★★★ NEW DEBUGGING CODE END ★★★
@@ -90,9 +89,10 @@ app.post('/convert', upload.array('images'), async (req, res) => {
 
             let imageBuffer = file.buffer; 
 
-            if (file.mimetype === 'image/heic') { 
-                imageBuffer = await heicConvert({ buffer: file.buffer, format: 'JPEG', quality: 1 }); 
-            } 
+            // if (file.mimetype === 'image/heic') { // ★heicConvert の使用箇所を一時的にコメントアウト
+            //     imageBuffer = await heicConvert({ buffer: file.buffer, format: 'JPEG', quality: 1 }); 
+            // } 
+            console.log('HEIC conversion skipped (heic-convert removed for testing)'); // テスト用ログ
 
             let sharpInstance = sharp(imageBuffer) 
                 .resize(width ? parseInt(width) : null, height ? parseInt(height) : null); 
