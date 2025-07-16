@@ -8,107 +8,119 @@ const archiver = require('archiver');
 const heicConvert = require('heic-convert');
 
 const app = express();
-// ★修正点1: Cloud Run の PORT 環境変数を使用
-const port = process.env.PORT || 3001;
-const uploadDir = './uploads';
+const port = process.env.PORT || 3001; 
+const uploadDir = './uploads'; 
 
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) { 
+    fs.mkdirSync(uploadDir); 
+} 
 
-// ★修正点2: より明示的なCORS設定
 const corsOptions = {
-  origin: 'https://matsuishi.github.io', // ★あなたのGitHub Pagesのドメインを正確に指定
+  origin: 'https://matsuishi.github.io', 
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
   credentials: true,
   optionsSuccessStatus: 204
 };
-app.use(cors(corsOptions)); // app.use(cors()); の代わりにこれを使用
+app.use(cors(corsOptions)); 
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/downloads', express.static(path.join(__dirname, 'uploads')));
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const conversionCache = {};
+const conversionCache = {}; 
 
-app.post('/convert', upload.array('images'), async (req, res) => {
-    try {
-        const { width, height, quality, format } = req.body;
-        const conversionId = Date.now().toString();
-        const convertedFiles = [];
+app.post('/convert', upload.array('images'), async (req, res) => { 
+    // ★ここから追加・修正
+    console.log('--- POST /convert route hit ---'); // ルートに到達したか確認
+    console.log('Request files:', req.files); // multerがファイルを正しくパースしたか確認
+    console.log('Request body:', req.body); // JSONボディがあるか確認 (今回は画像なので通常空)
+    // ★ここまで追加・修正
 
-        // ★修正点3a: バックエンド自身の公開URLを取得するための環境変数を追加
-        // Cloud Run の URL は CLOUD_RUN_URL 環境変数で提供されます (後でGCPで設定)
-        const backendBaseUrl = process.env.CLOUD_RUN_URL || `http://localhost:${port}`; 
+    try { 
+        const { width, height, quality, format } = req.body; 
+        const conversionId = Date.now().toString(); 
+        const convertedFiles = []; 
 
-        const processFile = async (file) => {
-            const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-            const outputFilename = `${path.parse(originalName).name}.${format}`;
-            const outputPath = path.join(uploadDir, outputFilename);
+        const backendBaseUrl = process.env.K_SERVICE_URL || process.env.CLOUD_RUN_URL || `http://localhost:${port}`; 
 
-            let imageBuffer = file.buffer;
+        const processFile = async (file) => { 
+            const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); 
+            const outputFilename = `${path.parse(originalName).name}.${format}`; 
+            const outputPath = path.join(uploadDir, outputFilename); 
 
-            if (file.mimetype === 'image/heic') {
-                imageBuffer = await heicConvert({ buffer: file.buffer, format: 'JPEG', quality: 1 });
-            }
+            let imageBuffer = file.buffer; 
 
-            let sharpInstance = sharp(imageBuffer)
-                .resize(width ? parseInt(width) : null, height ? parseInt(height) : null);
+            if (file.mimetype === 'image/heic') { 
+                imageBuffer = await heicConvert({ buffer: file.buffer, format: 'JPEG', quality: 1 }); 
+            } 
 
-            let outputBuffer;
-            if (format === 'webp') {
-                outputBuffer = await sharpInstance.webp({ quality: quality ? parseInt(quality) : 80 }).toBuffer();
-            } else {
-                outputBuffer = await sharpInstance.jpeg({ quality: quality ? parseInt(quality) : 80 }).toBuffer();
-            }
+            let sharpInstance = sharp(imageBuffer) 
+                .resize(width ? parseInt(width) : null, height ? parseInt(height) : null); 
 
-            fs.writeFileSync(outputPath, outputBuffer);
+            let outputBuffer; 
+            if (format === 'webp') { 
+                outputBuffer = await sharpInstance.webp({ quality: quality ? parseInt(quality) : 80 }).toBuffer(); 
+            } else { 
+                outputBuffer = await sharpInstance.jpeg({ quality: quality ? parseInt(quality) : 80 }).toBuffer(); 
+            } 
 
-            convertedFiles.push({
-                name: outputFilename,
-                path: outputPath,
-                size: outputBuffer.length,
-                // ★修正点3b: ダウンロードURLにバックエンドの公開URLを使用
-                url: `${backendBaseUrl}/downloads/${outputFilename}`
-            });
-        };
+            fs.writeFileSync(outputPath, outputBuffer); 
 
-        await Promise.all(req.files.map(processFile));
+            convertedFiles.push({ 
+                name: outputFilename, 
+                path: outputPath, 
+                size: outputBuffer.length, 
+                url: `${backendBaseUrl}/downloads/${outputFilename}` 
+            }); 
+        }; 
 
-        conversionCache[conversionId] = convertedFiles.map(f => f.path);
+        await Promise.all(req.files.map(processFile)); 
 
-        res.json({ 
-            conversionId, 
-            images: convertedFiles.map(f => ({ name: f.name, size: f.size, data: f.url }))
-        });
+        conversionCache[conversionId] = convertedFiles.map(f => f.path); 
 
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Image conversion failed.');
-    }
+        res.json({  
+            conversionId,  
+            images: convertedFiles.map(f => ({ name: f.name, size: f.size, data: f.url })) 
+        }); 
+
+    } catch (error) { 
+        console.error(error); 
+        res.status(500).send('Image conversion failed.'); 
+    } 
+}); 
+
+app.get('/download-zip/:conversionId', (req, res) => { 
+    const { conversionId } = req.params; 
+    const filepaths = conversionCache[conversionId]; 
+
+    if (!filepaths) { 
+        return res.status(404).send('Conversion not found or expired.'); 
+    } 
+
+    const archive = archiver('zip', { zlib: { level: 9 } }); 
+    archive.on('error', (err) => res.status(500).send({error: err.message})); 
+    res.attachment('converted_images.zip').type('zip'); 
+    archive.pipe(res); 
+
+    filepaths.forEach(filepath => { 
+        archive.file(filepath, { name: path.basename(filepath) }); 
+    }); 
+
+    archive.finalize(); 
+}); 
+
+// ★ここから追加
+// どのルートにもマッチしない場合、404エラーを返すミドルウェア
+// これは app.listen() の直前に置くのが非常に重要です
+app.use((req, res, next) => {
+  res.status(404).send('Backend API: Not Found');
 });
+// ★ここまで追加
 
-app.get('/download-zip/:conversionId', (req, res) => {
-    const { conversionId } = req.params;
-    const filepaths = conversionCache[conversionId];
-
-    if (!filepaths) {
-        return res.status(404).send('Conversion not found or expired.');
-    }
-
-    const archive = archiver('zip', { zlib: { level: 9 } });
-    archive.on('error', (err) => res.status(500).send({error: err.message}));
-    res.attachment('converted_images.zip').type('zip');
-    archive.pipe(res);
-
-    filepaths.forEach(filepath => {
-        archive.file(filepath, { name: path.basename(filepath) });
-    });
-
-    archive.finalize();
-});
-
-app.listen(port, () => {
-    console.log(`Server listening at http://localhost:${port}`);
+app.listen(port, () => { 
+    console.log(`Server listening at http://localhost:${port}`); 
 });
