@@ -125,6 +125,7 @@ button:disabled {
 
 .preview-item-large {
     width: calc(50% - 10px); /* Two items per row */
+    position: relative;
 }
 
 .preview-item-large img {

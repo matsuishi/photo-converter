@@ -53,8 +53,16 @@ app.get('/test-cors', (req, res) => {
 });
 
 // CORSオプションを定義
+const allowedOrigins = ['https://matsuishi.github.io', 'http://localhost:5174', 'http://localhost:5173'];
+
 const corsOptions = {
-  origin: 'https://matsuishi.github.io', 
+  origin: function (origin, callback) {
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
   credentials: true,
   optionsSuccessStatus: 204
@@ -72,36 +80,45 @@ const upload = multer({ storage: storage });
 const conversionCache = {}; 
 
 app.post('/convert', upload.array('images'), async (req, res) => { 
-    // 強制的にCORSヘッダーを設定（app.use(cors)が機能しない場合の最終手段）
-    res.setHeader('Access-Control-Allow-Origin', 'https://matsuishi.github.io'); 
-    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST', 'DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
     console.log('--- POST /convert route hit ---'); 
     console.log('Request files:', req.files); 
     console.log('Request body:', req.body); 
 
     try { 
-        const { width, height, quality, format } = req.body; 
+        const { width, height, quality, format, crops: cropsJson } = req.body; 
+        const crops = cropsJson ? JSON.parse(cropsJson) : [];
         const conversionId = Date.now().toString(); 
         const convertedFiles = []; 
 
         const backendBaseUrl = process.env.K_SERVICE_URL || process.env.CLOUD_RUN_URL || `http://localhost:${port}`; 
 
-        const processFile = async (file) => { 
+        const processFile = async (file, index) => { 
+            console.log(`Backend: Processing file: ${file.originalname}`);
+            const crop = crops[index];
             const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); 
-            const outputFilename = `${path.parse(originalName).name}.${format}`; 
-            const outputPath = path.join(uploadDir, outputFilename); 
+            const outputFilenameUnique = `${path.parse(originalName).name}_${conversionId}.${format}`; 
+            const outputPath = path.join(uploadDir, outputFilenameUnique); 
 
             let imageBuffer = file.buffer; 
 
             // if (file.mimetype === 'image/heic') { // ★heicConvert の使用箇所を一時的にコメントアウト
             //     imageBuffer = await heicConvert({ buffer: file.buffer, format: 'JPEG', quality: 1 }); 
             // } 
-            console.log('HEIC conversion skipped (heic-convert removed for testing)'); // テスト用ログ
+            console.log('Backend: HEIC conversion skipped (heic-convert removed for testing)'); // テスト用ログ
 
-            let sharpInstance = sharp(imageBuffer) 
-                .resize(width ? parseInt(width) : null, height ? parseInt(height) : null); 
+            let sharpInstance = sharp(imageBuffer); 
+
+            if (crop && crop.width > 0 && crop.height > 0) {
+                console.log('Backend: Applying crop:', crop);
+                sharpInstance = sharpInstance.extract({
+                    left: crop.x,
+                    top: crop.y,
+                    width: crop.width,
+                    height: crop.height
+                });
+            }
+
+            sharpInstance = sharpInstance.resize(width ? parseInt(width) : null, height ? parseInt(height) : null); 
 
             let outputBuffer; 
             if (format === 'webp') { 
@@ -111,17 +128,19 @@ app.post('/convert', upload.array('images'), async (req, res) => {
             } 
 
             fs.writeFileSync(outputPath, outputBuffer); 
+            console.log(`Backend: File saved to ${outputPath}, size: ${outputBuffer.length} bytes`);
 
             convertedFiles.push({ 
-                name: outputFilename, 
+                name: originalName, 
                 path: outputPath, 
                 size: outputBuffer.length, 
-                url: `${backendBaseUrl}/downloads/${outputFilename}` 
+                url: `${backendBaseUrl}/downloads/${outputFilenameUnique}` 
             }); 
         }; 
 
-        await Promise.all(req.files.map(processFile)); 
+        await Promise.all(req.files.map((file, index) => processFile(file, index))); 
 
+        console.log('Backend: Converted files array before response:', convertedFiles);
         conversionCache[conversionId] = convertedFiles.map(f => f.path); 
 
         res.json({  
@@ -130,8 +149,8 @@ app.post('/convert', upload.array('images'), async (req, res) => {
         }); 
 
     } catch (error) { 
-        console.error('Image conversion error:', error); 
-        res.status(500).send('Image conversion failed.'); 
+        console.error('Backend: Image conversion error:', error);
+        res.status(500).send('Image conversion failed.');
     } 
 }); 
 

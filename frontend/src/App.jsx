@@ -1,7 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import './App.css';
+
+// Define the base URL for the API based on the environment
+const apiBaseUrl = import.meta.env.DEV
+  ? 'http://localhost:3001'
+  : 'https://photo-converter-350490003884.asia-northeast1.run.app';
 
 function App() {
   const [files, setFiles] = useState([]);
@@ -11,13 +18,21 @@ function App() {
   const [height, setHeight] = useState('');
   const [quality, setQuality] = useState(80);
   const [format, setFormat] = useState('webp'); // webp or jpg
+  const imgRefs = useRef(new Map()); // Change to Map
 
   const onDrop = useCallback(acceptedFiles => {
-    setFiles(prevFiles => [...acceptedFiles, ...prevFiles]);
+    const newFiles = acceptedFiles.map(file => ({
+        originalFile: file, // Store the original File object
+        id: URL.createObjectURL(file), // Use object URL as a unique ID for React keys and imgRefs
+        preview: URL.createObjectURL(file),
+        name: file.name, // Add name property
+        crop: undefined, // Initial crop state for each file
+    }));
+    setFiles(prevFiles => [...newFiles, ...prevFiles]);
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
-      onDrop, 
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+      onDrop,
       accept: {
           'image/jpeg': ['.jpg', '.jpeg'],
           'image/png': ['.png'],
@@ -26,36 +41,117 @@ function App() {
   });
 
   const removeFile = (fileToRemove) => {
-      setFiles(prevFiles => prevFiles.filter(file => file !== fileToRemove));
+      setFiles(prevFiles => prevFiles.filter(file => {
+          if (file === fileToRemove) {
+              imgRefs.current.delete(file.id); // Remove ref when file is removed
+              URL.revokeObjectURL(file.preview); // Clean up object URL
+              return false;
+          }
+          return true;
+      }));
   }
 
-  const handleConvert = async () => {
-    const formData = new FormData();
-    files.forEach(file => {
-      formData.append('images', file);
+  const handleCropChange = (crop, percentCrop, index) => {
+    setFiles(prevFiles => {
+        return prevFiles.map((f, i) => {
+            if (i === index) {
+                return { ...f, crop: crop };
+            }
+            return f;
+        });
     });
+  };
+
+
+  const handleConvert = async () => {
+    console.log('--- Starting conversion process ---');
+    console.log('Files to convert (before processing):', files);
+
+    const formData = new FormData();
+    const crops = [];
+    files.forEach((file) => {
+      formData.append('images', file.originalFile); // Use the original File object
+      const img = imgRefs.current.get(file.id); // Get image ref from Map
+      console.log(`Processing file: ${file.name}, ID: ${file.id}`);
+      console.log('Image element ref (img):', img);
+      if (img) {
+          console.log(`Image natural dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
+          console.log(`Image displayed dimensions: ${img.width}x${img.height}`);
+      } else {
+          console.warn(`WARNING: Image element ref not found for file ID: ${file.id}`);
+      }
+      let cropData = null;
+      if (file.crop && img && img.naturalWidth && img.naturalHeight) {
+          const scaleX = img.naturalWidth / img.width;
+          const scaleY = img.naturalHeight / img.height;
+          cropData = {
+              x: Math.round(file.crop.x * scaleX),
+              y: Math.round(file.crop.y * scaleY),
+              width: Math.round(file.crop.width * scaleX),
+              height: Math.round(file.crop.height * scaleY)
+          };
+          console.log('Calculated cropData:', cropData);
+      } else if (file.crop) {
+          console.warn('WARNING: Crop data exists but image dimensions are not available for scaling.', file.crop);
+      }
+      crops.push(cropData);
+    });
+
+    formData.append('crops', JSON.stringify(crops));
     formData.append('width', width);
     formData.append('height', height);
     formData.append('quality', quality);
     formData.append('format', format);
 
+    console.log('FormData crops sent:', JSON.stringify(crops));
+
     try {
-      const response = await axios.post('https://photo-converter-350490003884.asia-northeast1.run.app/convert', formData, {
+      const response = await axios.post(`${apiBaseUrl}/convert`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
+      console.log('Backend response:', response.data);
       setConvertedImages(prev => [...response.data.images, ...prev]);
       setConversionId(response.data.conversionId);
+      setFiles(prevFiles => prevFiles.map(f => ({ ...f, crop: undefined })));
+      console.log('Files state after crop reset:', files.map(f => ({ id: f.id, crop: f.crop })));
     } catch (error) {
       console.error('Error converting images:', error);
+      if (error.response) {
+          console.error('Error response data:', error.response.data);
+          console.error('Error response status:', error.response.status);
+          console.error('Error response headers:', error.response.headers);
+      } else if (error.request) {
+          console.error('Error request:', error.request);
+      } else {
+          console.error('Error message:', error.message);
+      }
     }
   };
 
   const handleDownloadZip = () => {
     if (!conversionId) return;
-    const downloadUrl = `https://photo-converter-350490003884.asia-northeast1.run.app/download-zip/${conversionId}`;
+    const downloadUrl = `${apiBaseUrl}/download-zip/${conversionId}`;
     window.open(downloadUrl, '_blank');
+  };
+
+  const removeConvertedImage = (indexToRemove) => {
+    setConvertedImages(prevImages => prevImages.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleReset = () => {
+    // Revoke all object URLs to prevent memory leaks
+    files.forEach(file => URL.revokeObjectURL(file.preview));
+
+    setFiles([]);
+    setConvertedImages([]);
+    setConversionId(null);
+    setWidth('1200');
+    setHeight('');
+    setQuality(80);
+    setFormat('webp');
+    imgRefs.current.clear(); // Clear the Map of image refs
   };
 
   return (
@@ -84,44 +180,41 @@ function App() {
                 </div>
                 <button onClick={handleConvert} disabled={files.length === 0}>変換実行</button>
                 <button onClick={handleDownloadZip} disabled={conversionId === null}>ZIPでダウンロード</button>
-                {/*
-                <div className="original-images-container">
-                    <h2>変換待ちの画像 ({files.length})</h2>
-                    <div className="original-images">
-                        {files.map((file, index) => (
-                            <div key={index} className="preview-item-small">
-                                <img src={URL.createObjectURL(file)} alt={file.name} />
-                                <p>{file.name}</p>
-                                <button className="remove-btn" onClick={() => removeFile(file)}>×</button>
-                            </div>
-                        ))}
-                    </div>
-                </div>*/}
-                
+                <button onClick={handleReset}>リセット</button>
             </div>
 
             <div className="converted-container">
-              
-                {/* ★ここから：変換待ち一覧を流れの先頭へ移動 */}
                 <div className="original-images-container">
                   <h2>変換待ちの画像 ({files.length})</h2>
                   <div className="original-images">
-                    {files.map((file, index) => (
-                      <div key={index} className="preview-item-small">
-                        <img src={URL.createObjectURL(file)} alt={file.name} />
+                    {files.map((file) => (
+                      <div key={file.id} className="preview-item-large">
+                        <ReactCrop
+                            crop={file.crop}
+                            onChange={(c, pc) => handleCropChange(c, pc, files.indexOf(file))}
+                        >
+                            <img 
+                                ref={el => {
+                                    if (el) imgRefs.current.set(file.id, el);
+                                    else imgRefs.current.delete(file.id);
+                                }} 
+                                src={file.preview} 
+                                alt={file.name} 
+                            />
+                        </ReactCrop>
                         <p>{file.name}</p>
                         <button className="remove-btn" onClick={() => removeFile(file)}>×</button>
                       </div>
                     ))}
                   </div>
                 </div>
-                {/* ★ここまで */}
                 <h2>変換後の画像 ({convertedImages.length})</h2>
                 <div className="converted-images">
                     {convertedImages.map((image, index) => (
-                        <div key={index} className="preview-item-large">
-                            <img src={image.data} alt={image.name} />
+                        <div key={image.data} className="preview-item-large">
+                            <img src={`${image.data}?t=${new Date().getTime()}`} alt={image.name} />
                             <p>{image.name} ({(image.size / 1024).toFixed(2)} KB)</p>
+                            <button className="remove-btn" onClick={() => removeConvertedImage(index)}>×</button>
                         </div>
                     ))}
                 </div>
