@@ -88,6 +88,10 @@ app.post('/convert', upload.array('images'), async (req, res) => {
         const { width, height, quality, format, crops: cropsJson } = req.body; 
         const crops = cropsJson ? JSON.parse(cropsJson) : [];
         const conversionId = Date.now().toString(); 
+        const currentConversionUploadDir = path.join(uploadDir, conversionId); 
+        if (!fs.existsSync(currentConversionUploadDir)) { 
+            fs.mkdirSync(currentConversionUploadDir, { recursive: true }); 
+        }
         const convertedFiles = []; 
 
         const backendBaseUrl = process.env.K_SERVICE_URL || process.env.CLOUD_RUN_URL || `http://localhost:${port}`; 
@@ -96,8 +100,13 @@ app.post('/convert', upload.array('images'), async (req, res) => {
             console.log(`Backend: Processing file: ${file.originalname}`);
             const crop = crops[index];
             const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); 
-            const outputFilenameUnique = `${path.parse(originalName).name}_${conversionId}.${format}`; 
-            const outputPath = path.join(uploadDir, outputFilenameUnique); 
+            const originalNameWithoutExt = path.parse(originalName).name;
+            let suffix = '';
+            if (index > 0) {
+                suffix = `_${index}`;
+            }
+            const outputFilenameUnique = `${originalNameWithoutExt}${suffix}.${format}`; 
+            const outputPath = path.join(currentConversionUploadDir, outputFilenameUnique); 
 
             let imageBuffer = file.buffer; 
 
@@ -131,10 +140,10 @@ app.post('/convert', upload.array('images'), async (req, res) => {
             console.log(`Backend: File saved to ${outputPath}, size: ${outputBuffer.length} bytes`);
 
             convertedFiles.push({ 
-                name: originalName, 
+                name: outputFilenameUnique, 
                 path: outputPath, 
                 size: outputBuffer.length, 
-                url: `${backendBaseUrl}/downloads/${outputFilenameUnique}` 
+                url: `${backendBaseUrl}/downloads/${conversionId}/${outputFilenameUnique}` 
             }); 
         }; 
 
