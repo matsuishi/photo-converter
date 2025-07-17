@@ -183,15 +183,88 @@ app.get('/download-zip/:conversionId', (req, res) => {
     archive.finalize(); 
 }); 
 
+app.post('/download-selected-zip', express.json(), async (req, res) => {
+    console.log('--- POST /download-selected-zip route hit ---');
+    const { imageUrls } = req.body; // Expecting an array of image URLs
+
+    if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return res.status(400).send('No image URLs provided for download.');
+    }
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+        console.error('Archiver error:', err);
+        res.status(500).send({ error: err.message });
+    });
+
+    // Set the archive name
+    res.attachment('selected_images.zip').type('zip');
+    archive.pipe(res);
+
+    for (const imageUrl of imageUrls) {
+        // Example URL: http://localhost:3001/downloads/1752761019500/image.webp
+        // We need to extract '1752761019500/image.webp' part
+        const urlParts = imageUrl.split('/downloads/');
+        if (urlParts.length < 2) {
+            console.warn(`Skipping invalid URL: ${imageUrl}`);
+            continue;
+        }
+        const relativePath = urlParts[1]; // e.g., '1752761019500/image.webp'
+        const filePath = path.join(uploadDir, relativePath); // Construct absolute path
+
+        try {
+            // Check if file exists before adding to archive
+            await fs.promises.access(filePath, fs.constants.F_OK);
+            archive.file(filePath, { name: path.basename(filePath) }); // Add to zip with original filename
+        } catch (error) {
+            console.warn(`File not found or inaccessible: ${filePath}. Skipping.`, error.message);
+        }
+    }
+
+    archive.finalize();
+    console.log('--- POST /download-selected-zip finished ---');
+});
+
 // どのルートにもマッチしない場合、404エラーを返すミドルウェア
 app.use((req, res, next) => {
   res.status(404).send('Backend API: Not Found');
 });
 
+const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 1日ごと
+const FILE_LIFETIME_MS = 60 * 60 * 1000; // 1時間経過したファイルを削除
+
+const cleanupUploads = async () => {
+    console.log('--- Starting cleanup of old upload directories ---');
+    try {
+        const directories = await fs.promises.readdir(uploadDir, { withFileTypes: true });
+        for (const dirent of directories) {
+            if (dirent.isDirectory()) {
+                const dirPath = path.join(uploadDir, dirent.name);
+                try {
+                    const stats = await fs.promises.stat(dirPath);
+                    // 作成日時 (birthtime) が FILE_LIFETIME_MS より古い場合
+                    if ((Date.now() - stats.birthtime.getTime()) > FILE_LIFETIME_MS) {
+                        console.log(`--- Deleting old directory: ${dirPath} ---`);
+                        await fs.promises.rm(dirPath, { recursive: true, force: true });
+                    }
+                } catch (statError) {
+                    console.error(`--- Error stating directory ${dirPath}: ${statError.message} ---`);
+                }
+            }
+        }
+    } catch (readDirError) {
+        console.error(`--- Error reading upload directory: ${readDirError.message} ---`);
+    }
+    console.log('--- Cleanup of old upload directories finished ---');
+};
+
 // app.listen の周辺のログも維持
 console.log(`--- Attempting to listen on port ${port} (Cloud Run PORT env: ${process.env.PORT}) ---`);
 app.listen(port, '0.0.0.0', () => { 
     console.log(`--- Server listening successfully at http://0.0.0.0:${port} ---`);
+    // サーバー起動時に一度クリーンアップを実行し、その後定期的に実行
+    cleanupUploads();
+    setInterval(cleanupUploads, CLEANUP_INTERVAL_MS);
 }).on('error', (err) => { 
     console.error('--- app.listen ERROR: Server failed to start ---', err.message, err.stack); 
     process.exit(1); 

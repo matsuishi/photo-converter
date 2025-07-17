@@ -18,6 +18,7 @@ function App() {
   const [height, setHeight] = useState('');
   const [quality, setQuality] = useState(80);
   const [format, setFormat] = useState('webp'); // webp or jpg
+  const [aspectRatio, setAspectRatio] = useState(undefined); // New state for aspect ratio
   const imgRefs = useRef(new Map()); // Change to Map
 
   const onDrop = useCallback(acceptedFiles => {
@@ -130,10 +131,30 @@ function App() {
     }
   };
 
-  const handleDownloadZip = () => {
-    if (!conversionId) return;
-    const downloadUrl = `${apiBaseUrl}/download-zip/${conversionId}`;
-    window.open(downloadUrl, '_blank');
+  const handleDownloadZip = async () => {
+    if (convertedImages.length === 0) return;
+
+    const imageUrls = convertedImages.map(img => img.data);
+
+    try {
+      const response = await axios.post(`${apiBaseUrl}/download-selected-zip`, { imageUrls }, {
+        responseType: 'blob', // Important for downloading files
+      });
+
+      // Create a blob URL and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'converted_images.zip');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error downloading zip:', error);
+      alert('ZIPファイルのダウンロードに失敗しました。');
+    }
   };
 
   const removeConvertedImage = (indexToRemove) => {
@@ -173,6 +194,15 @@ function App() {
                     </div>
                     <input type="number" placeholder="幅 (任意)" value={width} onChange={e => setWidth(e.target.value)} />
                     <input type="number" placeholder="高さ (任意)" value={height} onChange={e => setHeight(e.target.value)} />
+                    <div className="aspect-ratio-select">
+                        <label>アスペクト比:</label>
+                        <select value={aspectRatio === undefined ? 'none' : aspectRatio} onChange={e => setAspectRatio(e.target.value === 'none' ? undefined : parseFloat(e.target.value))}>
+                            <option value="none">固定しない</option>
+                            <option value={16 / 9}>16:9</option>
+                            <option value={3 / 2}>3:2</option>
+                            <option value={4 / 3}>4:3</option>
+                        </select>
+                    </div>
                     <div className="quality-slider">
                         <label>品質: {quality}</label>
                         <input type="range" min="1" max="100" value={quality} onChange={e => setQuality(e.target.value)} />
@@ -192,6 +222,7 @@ function App() {
                         <ReactCrop
                             crop={file.crop}
                             onChange={(c, pc) => handleCropChange(c, pc, files.indexOf(file))}
+                            aspect={aspectRatio}
                         >
                             <img 
                                 ref={el => {
