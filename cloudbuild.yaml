@@ -1,10 +1,19 @@
 steps:
-# バックエンドのビルドとデプロイ
+# バックエンドのDockerイメージをビルドする
 - name: 'gcr.io/cloud-builders/docker'
+  id: 'バックエンドイメージのビルド'
   args: ['build', '-t', 'gcr.io/${PROJECT_ID}/image-converter-backend', 'backend']
   dir: '.'
 
+# ★★★ ここに新しいステップを追加 ★★★
+# ビルドしたイメージをGoogle Container Registryにプッシュする
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'バックエンドイメージのプッシュ'
+  args: ['push', 'gcr.io/${PROJECT_ID}/image-converter-backend']
+
+# バックエンドをCloud Runにデプロイする
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  id: 'バックエンドのデプロイ'
   entrypoint: gcloud
   args:
   - 'run'
@@ -19,23 +28,21 @@ steps:
   - '--allow-unauthenticated'
   - '--project=${PROJECT_ID}'
 
-# フロントエンドのビルドとデプロイ
+# フロントエンドの依存関係をインストール
 - name: 'gcr.io/cloud-builders/npm'
+  id: 'フロントエンドの依存関係インストール'
   args: ['install']
   dir: 'frontend'
 
+# フロントエンドをビルドする
 - name: 'gcr.io/cloud-builders/npm'
+  id: 'フロントエンドのビルド'
   args: ['run', 'build']
   dir: 'frontend'
 
-# ★★★ デバッグ用ステップ ★★★
-# buildで生成されたdistディレクトリの中身を確認する
-- name: 'ubuntu'
-  args: ['ls', '-R', 'frontend/dist']
-  dir: '.'
-
-# フロントエンドのファイルをCloud Storageにデプロイ
+# フロントエンドのファイルをCloud Storageにデプロイする
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  id: 'フロントエンドのデプロイ'
   entrypoint: gsutil
   args:
   - '-m'
@@ -44,7 +51,6 @@ steps:
   - 'frontend/dist'
   - 'gs://photo-converter-frontend-matsuishi'
 
-# ★★★ ここからが修正箇所 ★★★
-# "options:" は "steps:" と同じ階層（インデントなし）に記述します
+# ログ設定
 options:
   logging: CLOUD_LOGGING_ONLY
