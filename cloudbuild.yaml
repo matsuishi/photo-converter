@@ -1,17 +1,14 @@
 steps:
-# バックエンドのDockerイメージをビルドする
+# バックエンドのビルドとプッシュ
 - name: 'gcr.io/cloud-builders/docker'
   id: 'バックエンドイメージのビルド'
   args: ['build', '-t', 'gcr.io/${PROJECT_ID}/image-converter-backend', 'backend']
   dir: '.'
-
-# ★★★ ここに新しいステップを追加 ★★★
-# ビルドしたイメージをGoogle Container Registryにプッシュする
 - name: 'gcr.io/cloud-builders/docker'
   id: 'バックエンドイメージのプッシュ'
   args: ['push', 'gcr.io/${PROJECT_ID}/image-converter-backend']
 
-# バックエンドをCloud Runにデプロイする
+# バックエンドをCloud Runにデプロイ
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   id: 'バックエンドのデプロイ'
   entrypoint: gcloud
@@ -28,19 +25,24 @@ steps:
   - '--allow-unauthenticated'
   - '--project=${PROJECT_ID}'
 
-# フロントエンドの依存関係をインストール
+# フロントエンドのビルド
 - name: 'gcr.io/cloud-builders/npm'
   id: 'フロントエンドの依存関係インストール'
   args: ['install']
   dir: 'frontend'
-
-# フロントエンドをビルドする
 - name: 'gcr.io/cloud-builders/npm'
   id: 'フロントエンドのビルド'
   args: ['run', 'build']
   dir: 'frontend'
 
-# フロントエンドのファイルをCloud Storageにデプロイする
+# ★★★ ここに新しいステップを追加 ★★★
+# 古いフロントエンドのファイルをバケットから削除する
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  id: '古いフロントエンドファイルを削除'
+  entrypoint: 'gsutil'
+  args: ['-m', 'rm', '-f', '-r', 'gs://photo-converter-frontend-matsuishi/**']
+
+# フロントエンドのファイルをCloud Storageにデプロイ
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   id: 'フロントエンドのデプロイ'
   entrypoint: gsutil
