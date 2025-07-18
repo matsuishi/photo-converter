@@ -44,5 +44,7 @@ steps:
   - 'frontend/dist'
   - 'gs://photo-converter-frontend-matsuishi'
 
-  options:
+# ★★★ ここからが修正箇所 ★★★
+# "options:" は "steps:" と同じ階層（インデントなし）に記述します
+options:
   logging: CLOUD_LOGGING_ONLY
