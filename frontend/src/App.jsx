@@ -22,7 +22,15 @@ function App() {
   const imgRefs = useRef(new Map()); // Change to Map
 
   const onDrop = useCallback(acceptedFiles => {
-    const newFiles = acceptedFiles.map(file => ({
+    const imageFiles = acceptedFiles.filter(file => 
+        file.type === 'image/jpeg' || file.type === 'image/png'
+    );
+
+    if (imageFiles.length !== acceptedFiles.length) {
+      alert('JPGまたはPNG形式の画像ファイルのみ選択できます。一部のファイルは無視されました。');
+    }
+
+    const newFiles = imageFiles.map(file => ({
         originalFile: file, // Store the original File object
         id: URL.createObjectURL(file), // Use object URL as a unique ID for React keys and imgRefs
         preview: URL.createObjectURL(file),
@@ -34,9 +42,7 @@ function App() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
       onDrop,
-      accept: {
-          'image/*': []
-      }
+      // acceptプロパティを完全に削除し、OSのデフォルトのファイルピッカーを使用させる
   });
 
   const removeFile = (fileToRemove) => {
