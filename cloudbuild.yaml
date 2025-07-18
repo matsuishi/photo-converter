@@ -43,3 +43,6 @@ steps:
   - '-r'
   - 'frontend/dist'
   - 'gs://photo-converter-frontend-matsuishi'
+
+  options:
+  logging: CLOUD_LOGGING_ONLY
