@@ -34,11 +34,7 @@ function App() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
       onDrop,
-      accept: {
-          'image/jpeg': ['.jpg', '.jpeg'],
-          'image/png': ['.png'],
-          'image/heic': ['.heic'],
-      }
+      accept: 'image/jpeg, image/png, image/heic',
   });
 
   const removeFile = (fileToRemove) => {
