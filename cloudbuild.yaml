@@ -1,40 +1,45 @@
 steps:
 # バックエンドのビルドとデプロイ
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/${PROJECT_ID}/image-converter-backend', 'backend'] # backend ディレクトリをビルドコンテキストとして指定
-  dir: '.' # リポジトリのルートで実行
+  args: ['build', '-t', 'gcr.io/${PROJECT_ID}/image-converter-backend', 'backend']
+  dir: '.'
 
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   args:
   - 'run'
   - 'deploy'
-  - 'photo-converter' # Cloud Run サービス名 (前回設定したもの)
+  - 'photo-converter'
   - '--image'
-  - 'gcr.io/${PROJECT_ID}/image-converter-backend' # イメージ名を修正
+  - 'gcr.io/${PROJECT_ID}/image-converter-backend'
   - '--region'
-  - 'asia-northeast1' # デプロイするリージョン (前回設定したもの)
+  - 'asia-northeast1'
   - '--platform'
   - 'managed'
-  - '--allow-unauthenticated' # 未認証アクセスを許可
+  - '--allow-unauthenticated'
   - '--project=${PROJECT_ID}'
 
 # フロントエンドのビルドとデプロイ
 - name: 'gcr.io/cloud-builders/npm'
   args: ['install']
-  dir: 'frontend' # frontend ディレクトリで実行
+  dir: 'frontend'
 
 - name: 'gcr.io/cloud-builders/npm'
   args: ['run', 'build']
-  dir: 'frontend' # frontend ディレクトリで実行
+  dir: 'frontend'
 
+# ★★★ デバッグ用ステップ ★★★
+# buildで生成されたdistディレクトリの中身を確認する
+- name: 'ubuntu'
+  args: ['ls', '-R', 'frontend/dist']
+  dir: '.'
+
+# フロントエンドのファイルをCloud Storageにデプロイ
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gsutil
   args:
   - '-m'
   - 'rsync'
   - '-r'
-  - 'frontend/dist' # Vite のデフォルトのビルド出力ディレクトリ
-  - 'gs://photo-converter-frontend-matsuishi' # ここをあなたのCloud Storageバケット名に置き換えてください
-  # Cloud Storage バケットは事前に作成しておく必要があります。
-  # 例: gs://my-image-converter-frontend-bucket
+  - 'frontend/dist'
+  - 'gs://photo-converter-frontend-matsuishi'
