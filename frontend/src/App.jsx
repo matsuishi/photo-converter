@@ -35,7 +35,7 @@ function App() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
       onDrop,
       accept: {
-          'image/*': ['.jpeg', '.jpg', '.png']
+          'image/*': []
       }
   });
 
@@ -177,7 +177,7 @@ function App() {
     <div className="App">
         <div className="main-content">
             <div className="controls-container">
-                <h1>画像形式変換ツール (更新テスト)</h1>
+                <h1>画像形式変換ツール</h1>
                 <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
                     <input {...getInputProps()} />
                     <p>ここにファイルをドラッグ＆ドロップするか、<br/>クリックしてファイルを選択</p>
