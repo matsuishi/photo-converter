@@ -35,8 +35,7 @@ function App() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
       onDrop,
       accept: {
-          'image/jpeg': ['.jpg', '.jpeg'],
-          'image/png': ['.png'],
+          'image/*': ['.jpeg', '.jpg', '.png']
       }
   });
 
