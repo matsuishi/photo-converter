@@ -222,8 +222,8 @@ function App() {
                         >
                             <img 
                                 ref={el => {
-                                    if (el) imgRefs.current.set(el.id, el);
-                                    else imgRefs.current.delete(el.id);
+                                    if (el) imgRefs.current.set(file.id, el);
+                                    else imgRefs.current.delete(file.id);
                                 }} 
                                 src={file.preview} 
                                 alt={file.name} 
