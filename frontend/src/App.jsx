@@ -83,21 +83,7 @@ function App() {
           console.log(`Image natural dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
           console.log(`Image displayed dimensions: ${img.width}x${img.height}`);
       } else {
-          console.warn(`WARNING: Image element ref not found for file ID: ${file.id}`);
-      }
-      let cropData = null;
-      if (file.crop && img && img.naturalWidth && img.naturalHeight) {
-          const scaleX = img.naturalWidth / img.width;
-          const scaleY = img.naturalHeight / img.height;
-          cropData = {
-              x: Math.round(file.crop.x * scaleX),
-              y: Math.round(file.crop.y * scaleY),
-              width: Math.round(file.crop.width * scaleX),
-              height: Math.round(file.crop.height * scaleY)
-          };
-          console.log('Calculated cropData:', cropData);
-      } else if (file.crop) {
-          console.warn('WARNING: Crop data exists but image dimensions are not available for scaling.', file.crop);
+          console.warn(`WARNING: Crop data exists but image dimensions are not available for scaling.', file.crop);
       }
       crops.push(cropData);
     });
@@ -111,16 +97,29 @@ function App() {
     console.log('FormData crops sent:', JSON.stringify(crops));
 
     try {
+      console.log('--- Sending conversion request to backend ---');
       const response = await axios.post(`${apiBaseUrl}/convert`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
-      console.log('Backend response:', response.data);
+      console.log('--- Received response from backend ---');
+      console.log('Backend response data:', response.data);
+      
+      console.log('--- Updating convertedImages state ---');
       setConvertedImages(prev => [...response.data.images, ...prev]);
+      console.log('--- convertedImages state updated ---');
+
+      console.log('--- Updating conversionId state ---');
       setConversionId(response.data.conversionId);
+      console.log('--- conversionId state updated ---');
+
+      console.log('--- Resetting files crop state ---');
       setFiles(prevFiles => prevFiles.map(f => ({ ...f, crop: undefined })));
+      console.log('--- Files crop state reset ---');
       console.log('Files state after crop reset:', files.map(f => ({ id: f.id, crop: f.crop })));
+      console.log('--- Conversion process completed successfully ---');
+
     } catch (error) {
       console.error('Error converting images:', error);
       if (error.response) {
@@ -132,6 +131,7 @@ function App() {
       } else {
           console.error('Error message:', error.message);
       }
+      alert('画像変換に失敗しました。詳細はコンソールを確認してください。');
     }
   };
 
