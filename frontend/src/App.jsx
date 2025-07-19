@@ -135,32 +135,6 @@ function App() {
     }
   };
 
-  const handleDownloadZip = async () => {
-    if (convertedImages.length === 0) return;
-
-    const imageUrls = convertedImages.map(img => img.data);
-
-    try {
-      const response = await axios.post(`${apiBaseUrl}/download-selected-zip`, { imageUrls }, {
-        responseType: 'blob', // Important for downloading files
-      });
-
-      // Create a blob URL and trigger download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'converted_images.zip');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error('Error downloading zip:', error);
-      alert('ZIPファイルのダウンロードに失敗しました。');
-    }
-  };
-
   const removeConvertedImage = (indexToRemove) => {
     setConvertedImages(prevImages => prevImages.filter((_, index) => index !== indexToRemove));
   };
@@ -202,7 +176,7 @@ function App() {
         <div className="main-content">
             <div className="controls-container">
                 <h1>画像形式変換ツール</h1>
-                <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
+                <div {...getRootProps()} className={`dropzone ${isDragActive ? '' : ''}`}>
                     <input {...getInputProps()} />
                     <p>ここにファイルをドラッグ＆ドロップするか、<br/>クリックしてファイルを選択</p>
                 </div>
@@ -231,7 +205,7 @@ function App() {
                     </div>
                 </div>
                 <button onClick={handleConvert} disabled={files.length === 0}>変換実行</button>
-                <button onClick={handleDownloadZip} disabled={conversionId === null}>ZIPでダウンロード</button>
+                
                 <button onClick={handleReset}>リセット</button>
             </div>
 
@@ -248,8 +222,8 @@ function App() {
                         >
                             <img 
                                 ref={el => {
-                                    if (el) imgRefs.current.set(file.id, el);
-                                    else imgRefs.current.delete(file.id);
+                                    if (el) imgRefs.current.set(el.id, el);
+                                    else imgRefs.current.delete(el.id);
                                 }} 
                                 src={file.preview} 
                                 alt={file.name} 
@@ -267,7 +241,7 @@ function App() {
                         <div key={image.data} className="preview-item-large">
                             <img src={`${image.data}?t=${new Date().getTime()}`} alt={image.name} />
                             <p>{image.name} ({(image.size / 1024).toFixed(2)} KB)</p>
-                            <a href={`${image.data}?t=${new Date().getTime()}`} download={image.name} className="download-btn">ダウンロード</a>
+                            <button onClick={() => handleIndividualDownload(image.data, image.name)} className="download-btn">ダウンロード</button>
                             <button className="remove-btn" onClick={() => removeConvertedImage(index)}>×</button>
                         </div>
                     ))}
