@@ -83,21 +83,7 @@ function App() {
           console.log(`Image natural dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
           console.log(`Image displayed dimensions: ${img.width}x${img.height}`);
       } else {
-          console.warn(`WARNING: Image element ref not found for file ID: ${file.id}`);
-      }
-      let cropData = null;
-      if (file.crop && img && img.naturalWidth && img.naturalHeight) {
-          const scaleX = img.naturalWidth / img.width;
-          const scaleY = img.naturalHeight / img.height;
-          cropData = {
-              x: Math.round(file.crop.x * scaleX),
-              y: Math.round(file.crop.y * scaleY),
-              width: Math.round(file.crop.width * scaleX),
-              height: Math.round(file.crop.height * scaleY)
-          };
-          console.log('Calculated cropData:', cropData);
-      } else if (file.crop) {
-          console.warn('WARNING: Crop data exists but image dimensions are not available for scaling.', file.crop);
+          console.warn(`WARNING: Crop data exists but image dimensions are not available for scaling.', file.crop);
       }
       crops.push(cropData);
     });
@@ -111,16 +97,29 @@ function App() {
     console.log('FormData crops sent:', JSON.stringify(crops));
 
     try {
+      console.log('--- Sending conversion request to backend ---');
       const response = await axios.post(`${apiBaseUrl}/convert`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
-      console.log('Backend response:', response.data);
+      console.log('--- Received response from backend ---');
+      console.log('Backend response data:', response.data);
+      
+      console.log('--- Updating convertedImages state ---');
       setConvertedImages(prev => [...response.data.images, ...prev]);
+      console.log('--- convertedImages state updated ---');
+
+      console.log('--- Updating conversionId state ---');
       setConversionId(response.data.conversionId);
+      console.log('--- conversionId state updated ---');
+
+      console.log('--- Resetting files crop state ---');
       setFiles(prevFiles => prevFiles.map(f => ({ ...f, crop: undefined })));
+      console.log('--- Files crop state reset ---');
       console.log('Files state after crop reset:', files.map(f => ({ id: f.id, crop: f.crop })));
+      console.log('--- Conversion process completed successfully ---');
+
     } catch (error) {
       console.error('Error converting images:', error);
       if (error.response) {
@@ -132,32 +131,7 @@ function App() {
       } else {
           console.error('Error message:', error.message);
       }
-    }
-  };
-
-  const handleDownloadZip = async () => {
-    if (convertedImages.length === 0) return;
-
-    const imageUrls = convertedImages.map(img => img.data);
-
-    try {
-      const response = await axios.post(`${apiBaseUrl}/download-selected-zip`, { imageUrls }, {
-        responseType: 'blob', // Important for downloading files
-      });
-
-      // Create a blob URL and trigger download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'converted_images.zip');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error('Error downloading zip:', error);
-      alert('ZIPファイルのダウンロードに失敗しました。');
+      alert('画像変換に失敗しました。詳細はコンソールを確認してください。');
     }
   };
 
@@ -202,7 +176,7 @@ function App() {
         <div className="main-content">
             <div className="controls-container">
                 <h1>画像形式変換ツール</h1>
-                <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
+                <div {...getRootProps()} className={`dropzone ${isDragActive ? '' : ''}`}>
                     <input {...getInputProps()} />
                     <p>ここにファイルをドラッグ＆ドロップするか、<br/>クリックしてファイルを選択</p>
                 </div>
@@ -231,7 +205,7 @@ function App() {
                     </div>
                 </div>
                 <button onClick={handleConvert} disabled={files.length === 0}>変換実行</button>
-                <button onClick={handleDownloadZip} disabled={conversionId === null}>ZIPでダウンロード</button>
+                
                 <button onClick={handleReset}>リセット</button>
             </div>
 
@@ -267,7 +241,7 @@ function App() {
                         <div key={image.data} className="preview-item-large">
                             <img src={`${image.data}?t=${new Date().getTime()}`} alt={image.name} />
                             <p>{image.name} ({(image.size / 1024).toFixed(2)} KB)</p>
-                            <a href={`${image.data}?t=${new Date().getTime()}`} download={image.name} className="download-btn">ダウンロード</a>
+                            <button onClick={() => handleIndividualDownload(image.data, image.name)} className="download-btn">ダウンロード</button>
                             <button className="remove-btn" onClick={() => removeConvertedImage(index)}>×</button>
                         </div>
                     ))}
