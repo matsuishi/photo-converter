@@ -247,10 +247,9 @@ function App() {
                 <div className="converted-images">
                     {convertedImages.map((image, index) => (
                         <div key={image.data} className="preview-item-large">
-                            <a href={`${image.data}?t=${new Date().getTime()}`} download={image.name}>
-                                <img src={`${image.data}?t=${new Date().getTime()}`} alt={image.name} />
-                            </a>
+                            <img src={`${image.data}?t=${new Date().getTime()}`} alt={image.name} />
                             <p>{image.name} ({(image.size / 1024).toFixed(2)} KB)</p>
+                            <a href={`${image.data}?t=${new Date().getTime()}`} download={image.name} className="download-btn">ダウンロード</a>
                             <button className="remove-btn" onClick={() => removeConvertedImage(index)}>×</button>
                         </div>
                     ))}
