@@ -247,7 +247,9 @@ function App() {
                 <div className="converted-images">
                     {convertedImages.map((image, index) => (
                         <div key={image.data} className="preview-item-large">
-                            <img src={`${image.data}?t=${new Date().getTime()}`} alt={image.name} />
+                            <a href={`${image.data}?t=${new Date().getTime()}`} download={image.name}>
+                                <img src={`${image.data}?t=${new Date().getTime()}`} alt={image.name} />
+                            </a>
                             <p>{image.name} ({(image.size / 1024).toFixed(2)} KB)</p>
                             <button className="remove-btn" onClick={() => removeConvertedImage(index)}>×</button>
                         </div>

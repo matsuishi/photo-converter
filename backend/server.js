@@ -163,67 +163,7 @@ app.post('/convert', upload.array('images'), async (req, res) => {
     } 
 }); 
 
-app.get('/download-zip/:conversionId', (req, res) => { 
-    const { conversionId } = req.params; 
-    const filepaths = conversionCache[conversionId]; 
 
-    if (!filepaths) { 
-        return res.status(404).send('Conversion not found or expired.'); 
-    } 
-
-    const archive = archiver('zip', { zlib: { level: 9 } }); 
-    archive.on('error', (err) => res.status(500).send({error: err.message})); 
-    res.attachment('converted_images.zip').type('zip'); 
-    archive.pipe(res); 
-
-    filepaths.forEach(filepath => { 
-        archive.file(filepath, { name: path.basename(filepath) }); 
-    }); 
-
-    archive.finalize(); 
-}); 
-
-app.post('/download-selected-zip', express.json(), async (req, res) => {
-    console.log('--- POST /download-selected-zip route hit ---');
-    const { imageUrls } = req.body; // Expecting an array of image URLs
-
-    if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
-        return res.status(400).send('No image URLs provided for download.');
-    }
-
-    const archive = archiver('zip', { zlib: { level: 9 } });
-    archive.on('error', (err) => {
-        console.error('Archiver error:', err);
-        res.status(500).send({ error: err.message });
-    });
-
-    // Set the archive name
-    res.attachment('selected_images.zip').type('zip');
-    archive.pipe(res);
-
-    for (const imageUrl of imageUrls) {
-        // Example URL: http://localhost:3001/downloads/1752761019500/image.webp
-        // We need to extract '1752761019500/image.webp' part
-        const urlParts = imageUrl.split('/downloads/');
-        if (urlParts.length < 2) {
-            console.warn(`Skipping invalid URL: ${imageUrl}`);
-            continue;
-        }
-        const relativePath = urlParts[1]; // e.g., '1752761019500/image.webp'
-        const filePath = path.join(uploadDir, relativePath); // Construct absolute path
-
-        try {
-            // Check if file exists before adding to archive
-            await fs.promises.access(filePath, fs.constants.F_OK);
-            archive.file(filePath, { name: path.basename(filePath) }); // Add to zip with original filename
-        } catch (error) {
-            console.warn(`File not found or inaccessible: ${filePath}. Skipping.`, error.message);
-        }
-    }
-
-    archive.finalize();
-    console.log('--- POST /download-selected-zip finished ---');
-});
 
 // どのルートにもマッチしない場合、404エラーを返すミドルウェア
 app.use((req, res, next) => {
