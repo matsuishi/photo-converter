@@ -71,7 +71,8 @@ button:disabled {
 }
 
 .original-images-container {
-    margin-top: 20px;
+    margin-top: 0;
+    max-height: 45vh; /* Limit height to 45% of viewport height */
     flex-grow: 1; /* Take remaining space */ 
     overflow-y: auto; /* Scroll if content overflows */
 }
