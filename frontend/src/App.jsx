@@ -98,7 +98,8 @@ function App() {
 
     try {
       console.log('--- Sending conversion request to backend ---');
-      const response = await axios.post(`${apiBaseUrl}/convert`, formData, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    const response = await axios.post(`${apiUrl}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

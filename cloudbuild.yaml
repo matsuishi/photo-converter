@@ -34,6 +34,8 @@ steps:
   id: 'フロントエンドのビルド'
   args: ['run', 'build']
   dir: 'frontend'
+  env:
+  - 'VITE_API_URL=https://photo-converter-backend-a6k4n5l23a-an.a.run.app'
 
 # ★★★ ここに新しいステップを追加 ★★★
 # 古いフロントエンドのファイルをバケットから削除する
