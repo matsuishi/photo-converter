@@ -72,7 +72,6 @@ button:disabled {
 
 .original-images-container {
     margin-top: 0;
-    max-height: 45vh; /* Limit height to 45% of viewport height */
     flex-grow: 1; /* Take remaining space */ 
     overflow-y: auto; /* Scroll if content overflows */
 }
@@ -125,7 +124,7 @@ button:disabled {
 }
 
 .preview-item-large {
-    width: calc(50% - 10px); /* Two items per row */
+    width: calc(33.33% - 14px); /* Three items per row */
     position: relative;
 }
 
