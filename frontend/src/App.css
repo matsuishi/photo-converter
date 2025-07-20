@@ -140,3 +140,23 @@ button:disabled {
     margin-top: 5px;
     font-size: 14px;
 }
+
+.file-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+}
+
+.file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 10px; /* Add some space between filename and button */
+}
+
+.download-btn {
+    padding: 5px 10px; /* Smaller padding */
+    font-size: 12px; /* Smaller font size */
+    margin: 0; /* Remove default margin */
+}
