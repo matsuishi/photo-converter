@@ -120,10 +120,10 @@ app.post('/upload', upload.array('images'), async (req, res) => {
             if (crop && crop.width > 0 && crop.height > 0) {
                 console.log('Backend: Applying crop:', crop);
                 sharpInstance = sharpInstance.extract({
-                    left: crop.x,
-                    top: crop.y,
-                    width: crop.width,
-                    height: crop.height
+                    left: parseInt(crop.x),
+                    top: parseInt(crop.y),
+                    width: parseInt(crop.width),
+                    height: parseInt(crop.height)
                 });
             }
 
