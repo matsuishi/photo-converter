@@ -79,7 +79,7 @@ const upload = multer({ storage: storage });
 
 const conversionCache = {}; 
 
-app.post('/convert', upload.array('images'), async (req, res) => { 
+app.post('/upload', upload.array('images'), async (req, res) => { 
     console.log('--- POST /convert route hit ---'); 
     console.log('Request files:', req.files); 
     console.log('Request body:', req.body); 
