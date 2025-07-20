@@ -77,15 +77,15 @@ function App() {
     files.forEach((file) => {
       formData.append('images', file.originalFile); // Use the original File object
       const img = imgRefs.current.get(file.id); // Get image ref from Map
-      console.log(`Processing file: ${file.name}, ID: ${file.id}`);
+      console.log('Processing file: ' + file.name + ', ID: ' + file.id);
       console.log('Image element ref (img):', img);
       if (img) {
-          console.log(`Image natural dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
-          console.log(`Image displayed dimensions: ${img.width}x${img.height}`);
+          console.log('Image natural dimensions: ' + img.naturalWidth + 'x' + img.naturalHeight);
+          console.log('Image displayed dimensions: ' + img.width + 'x' + img.height);
       } else {
-          console.warn(`WARNING: Crop data exists but image dimensions are not available for scaling.', file.crop);
+          console.warn('WARNING: Crop data exists but image dimensions are not available for scaling.', file.crop);
       }
-      crops.push(cropData);
+      crops.push(file.crop || {});
     });
 
     formData.append('crops', JSON.stringify(crops));
@@ -99,7 +99,7 @@ function App() {
     try {
       console.log('--- Sending conversion request to backend ---');
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-    const response = await axios.post(`${apiUrl}/upload`, formData, {
+      const response = await axios.post(apiUrl + '/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -177,7 +177,7 @@ function App() {
         <div className="main-content">
             <div className="controls-container">
                 <h1>画像形式変換ツール</h1>
-                <div {...getRootProps()} className={`dropzone ${isDragActive ? '' : ''}`}>
+                <div {...getRootProps()} className={'dropzone' + (isDragActive ? ' active' : '')}>
                     <input {...getInputProps()} />
                     <p>ここにファイルをドラッグ＆ドロップするか、<br/>クリックしてファイルを選択</p>
                 </div>
@@ -240,7 +240,7 @@ function App() {
                 <div className="converted-images">
                     {convertedImages.map((image, index) => (
                         <div key={image.data} className="preview-item-large">
-                            <img src={`${image.data}?t=${new Date().getTime()}`} alt={image.name} />
+                            <img src={image.data + '?t=' + new Date().getTime()} alt={image.name} />
                             <p>{image.name} ({(image.size / 1024).toFixed(2)} KB)</p>
                             <button onClick={() => handleIndividualDownload(image.data, image.name)} className="download-btn">ダウンロード</button>
                             <button className="remove-btn" onClick={() => removeConvertedImage(index)}>×</button>
